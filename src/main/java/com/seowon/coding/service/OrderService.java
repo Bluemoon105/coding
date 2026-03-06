@@ -150,6 +150,7 @@ public class OrderService {
      * - 리뷰 포인트: proxy 및 transaction 분리, 예외 전파/롤백 범위, 가독성 등
      * - 상식적인 수준에서 요구사항(기획)을 가정하며 최대한 상세히 작성하세요.
      */
+
     @Transactional
     public void bulkShipOrdersParent(String jobId, List<Long> orderIds) {
         ProcessingStatus ps = processingStatusRepository.findByJobId(jobId)
