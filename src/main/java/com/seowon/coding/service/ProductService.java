@@ -58,6 +58,7 @@ public class ProductService {
     /**
      * TODO #6 (리펙토링): 대량 가격 변경 로직을 도메인 객체 안으로 리팩토링하세요.
      */
+
     public void applyBulkPriceChange(List<Long> productIds, BigDecimal percentage, BigDecimal vatRate, boolean includeTax) {
         if (productIds == null || productIds.isEmpty()) {
             throw new IllegalArgumentException("empty productIds");
