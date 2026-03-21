@@ -64,7 +64,23 @@ public class OrderService {
         // * order 를 저장
         // * 각 Product 의 재고를 수정
         // * placeOrder 메소드의 시그니처는 변경하지 않은 채 구현하세요.
-        return null;
+
+        Order order = new Order();
+        order.setCustomerName(customerName);
+        order.setCustomerEmail(customerEmail);
+
+        order.setStatus("PENDING");
+        order.setOrderDate(LocalDateTime.now());
+
+        for (int i = 0; i < productIds.size(); i++) {
+            Product product = products.get(i);
+            int quantity = quantities.get(i);
+
+            product.setStock(product.getStock() - quantity);
+
+            order.getProducts().add(product);
+        }
+        orderRepository.save(order);
     }
 
     /**
@@ -72,6 +88,7 @@ public class OrderService {
      * - Repository 조회는 도메인 객체 밖에서 해결하여 의존을 차단 합니다.
      * - #3 에서 추가한 도메인 메소드가 있을 경우 사용해도 됩니다.
      */
+
     public Order checkoutOrder(String customerName,
                                String customerEmail,
                                List<OrderProduct> orderProducts,
@@ -119,8 +136,8 @@ public class OrderService {
             subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(qty)));
         }
 
-        BigDecimal shipping = subtotal.compareTo(new BigDecimal("100.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("5.00");
-        BigDecimal discount = (couponCode != null && couponCode.startsWith("SALE")) ? new BigDecimal("10.00") : BigDecimal.ZERO;
+        BigDecimal shipping = order.caculateShippingCost();
+        BigDecimal discount = order.caculateDiscount;
 
         order.setTotalAmount(subtotal.add(shipping).subtract(discount));
         order.setStatus(Order.OrderStatus.PROCESSING);
@@ -133,6 +150,7 @@ public class OrderService {
      * - 리뷰 포인트: proxy 및 transaction 분리, 예외 전파/롤백 범위, 가독성 등
      * - 상식적인 수준에서 요구사항(기획)을 가정하며 최대한 상세히 작성하세요.
      */
+
     @Transactional
     public void bulkShipOrdersParent(String jobId, List<Long> orderIds) {
         ProcessingStatus ps = processingStatusRepository.findByJobId(jobId)
@@ -141,6 +159,7 @@ public class OrderService {
         processingStatusRepository.save(ps);
 
         int processed = 0;
+
         for (Long orderId : (orderIds == null ? List.<Long>of() : orderIds)) {
             try {
                 // 오래 걸리는 작업 이라는 가정 시뮬레이션 (예: 외부 시스템 연동, 대용량 계산 등)
@@ -157,9 +176,13 @@ public class OrderService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateProgressRequiresNew(String jobId, int processed, int total) {
-        ProcessingStatus ps = processingStatusRepository.findByJobId(jobId)
-                .orElseGet(() -> ProcessingStatus.builder().jobId(jobId).build());
+
+        ProcessingStatus ps = processingStatusRepository
+                .findByJobId(jobId)
+                .orElseThrow(() -> new RuntimeException("ProcessingStatus not found"));
+
         ps.updateProgress(processed, total);
+
         processingStatusRepository.save(ps);
     }
 

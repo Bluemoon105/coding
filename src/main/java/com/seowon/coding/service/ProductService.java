@@ -51,13 +51,15 @@ public class ProductService {
     public List<Product> findProductsByCategory(String category) {
         // TODO #1: 구현 항목
         // Repository를 사용하여 category 로 찾을 제품목록 제공
-        return List.of();
+
+        return productRepository.findByCategory(category);
     }
 
     /**
      * TODO #6 (리펙토링): 대량 가격 변경 로직을 도메인 객체 안으로 리팩토링하세요.
      */
-    public void applyBulkPriceChange(List<Long> productIds, double percentage, boolean includeTax) {
+
+    public void applyBulkPriceChange(List<Long> productIds, BigDecimal percentage, BigDecimal vatRate, boolean includeTax) {
         if (productIds == null || productIds.isEmpty()) {
             throw new IllegalArgumentException("empty productIds");
         }
@@ -66,15 +68,16 @@ public class ProductService {
             Product p = productRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
 
-            double base = p.getPrice() == null ? 0.0 : p.getPrice().doubleValue();
-            double changed = base + (base * (percentage / 100.0)); // 부동소수점 오류 가능
+            BigDecimal base = price == null ? BigDecimal.Zero : price;
+            BigDecimal changed = base.add(
+                    base.multiply(percentage)
+                            .divide(BigDecimal.valueOf(100))
+            );// 부동소수점 오류 가능
             if (includeTax) {
-                changed = changed * 1.1; // 하드코딩 VAT 10%, 지역/카테고리별 규칙 미반영
+                changed = changed.multiply(vatRate); // 하드코딩 VAT 10%, 지역/카테고리별 규칙 미반영
             }
             // 임의 반올림: 일관되지 않은 스케일/반올림 모드
-            BigDecimal newPrice = BigDecimal.valueOf(changed).setScale(2, RoundingMode.HALF_UP);
-            p.setPrice(newPrice);
-            productRepository.save(p); // 루프마다 저장 (비효율적)
+            this.price = changed.setScale(2, RoundingMode.HALF_UP); // 루프마다 저장 (비효율적)
         }
     }
 }
